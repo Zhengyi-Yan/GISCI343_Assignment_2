@@ -17,20 +17,8 @@ Path("data/processed").mkdir(parents=True, exist_ok=True)
 # Load spatial data
 # -----------------------------
 
-bus_routes = gpd.read_file("data/bus_routes.geojson")
-train_routes = gpd.read_file("data/train_routes.geojson")
-
-# Make sure bus routes are in WGS84 for ipyleaflet
-if bus_routes.crs is None:
-    bus_routes = bus_routes.set_crs(4326)
-else:
-    bus_routes = bus_routes.to_crs(4326)
-
-# Make sure train routes are in WGS84 for ipyleaflet
-if train_routes.crs is None:
-    train_routes = train_routes.set_crs(4326)
-else:
-    train_routes = train_routes.to_crs(4326)
+bus_routes = gpd.read_file("data/bus_routes.geojson").to_crs(4326)
+train_routes = gpd.read_file("data/train_routes.geojson").to_crs(4326)
 
 # Clean route number fields for reliable filtering
 bus_routes["ROUTENUMBER_CLEAN"] = (
@@ -39,6 +27,23 @@ bus_routes["ROUTENUMBER_CLEAN"] = (
     .str.strip()
     .str.upper()
 )
+
+# Precompute lightweight GeoJSON for the map so reactive map updates do not
+# repeatedly serialize the route layers.
+train_routes_display = train_routes.copy()
+train_routes_display["geometry"] = train_routes_display.geometry.simplify(
+    tolerance=0.0002,
+    preserve_topology=True
+)
+
+train_routes_geojson = json.loads(train_routes_display.to_json())
+
+bus_route_geojson = {
+    route: json.loads(
+        bus_routes[bus_routes["ROUTENUMBER_CLEAN"] == route].to_json()
+    )
+    for route in ["70", "NX1", "NX2"]
+}
 
 # -----------------------------
 # Load patronage table
@@ -185,13 +190,113 @@ app_ui = ui.page_fluid(
 # -----------------------------
 
 def server(input, output, session):
+    bus_styles = {
+        "70": {
+            "color": "#2ca25f",
+            "weight": 4,
+            "opacity": 0.85,
+        },
+        "NX1": {
+            "color": "#d73027",
+            "weight": 4,
+            "opacity": 0.85,
+        },
+        "NX2": {
+            "color": "#2563eb",
+            "weight": 4,
+            "opacity": 0.85,
+        },
+    }
+
+    train_style = {
+        "color": "#f97316",
+        "weight": 5,
+        "opacity": 1.0,
+    }
+
+    map_state = {
+        "map": None,
+        "bus_layers": {},
+        "train_layer": None,
+    }
+
+    def build_network_map():
+        network_map_widget = Map(
+            center=(-36.85, 174.77),
+            zoom=11,
+            basemap=basemaps.CartoDB.Positron,
+            scroll_wheel_zoom=True
+        )
+
+        bus_layers = {
+            service: GeoJSON(
+                data=geojson_data,
+                style=bus_styles.get(
+                    service,
+                    {
+                        "color": "#333333",
+                        "weight": 4,
+                        "opacity": 0.8,
+                    }
+                ),
+                name=f"Bus route {service}"
+            )
+            for service, geojson_data in bus_route_geojson.items()
+        }
+
+        train_layer = GeoJSON(
+            data=train_routes_geojson,
+            style=train_style,
+            name="Train network"
+        )
+
+        for layer in bus_layers.values():
+            network_map_widget.add_layer(layer)
+
+        network_map_widget.add_layer(train_layer)
+
+        map_state["map"] = network_map_widget
+        map_state["bus_layers"] = bus_layers
+        map_state["train_layer"] = train_layer
+
+        return network_map_widget
+
+    def set_map_layer(layer, show):
+        network_map_widget = map_state["map"]
+
+        if network_map_widget is None:
+            return
+
+        layer_is_visible = layer in network_map_widget.layers
+
+        if show and not layer_is_visible:
+            network_map_widget.add_layer(layer)
+        elif not show and layer_is_visible:
+            network_map_widget.remove_layer(layer)
+
+    @reactive.effect
+    def update_map_layers():
+        selected_services = {
+            str(service).strip().upper()
+            for service in (input.services() or [])
+        }
+
+        for service, layer in map_state["bus_layers"].items():
+            set_map_layer(layer, service in selected_services)
+
+        train_layer = map_state["train_layer"]
+        if train_layer is None:
+            return
+
+        set_map_layer(train_layer, "TRAIN" in selected_services)
 
     @reactive.calc
     def filtered():
         df = patronage.copy()
 
         # Service checkbox filter
-        df = df[df["service"].isin(input.services())]
+        selected_services = input.services() or []
+        df = df[df["service"].isin(selected_services)]
 
         # Year range slider filter
         start_year, end_year = input.year_range()
@@ -325,84 +430,9 @@ def server(input, output, session):
 
     @render_widget
     def network_map():
-        selected_services = list(input.services() or [])
+        if map_state["map"] is None:
+            return build_network_map()
 
-        selected_services_clean = [
-            str(service).strip().upper()
-            for service in selected_services
-        ]
-
-        show_train = "TRAIN" in selected_services_clean
-
-        selected_bus_services = [
-            service for service in selected_services_clean
-            if service != "TRAIN"
-        ]
-
-        # Same line weight, solid bus lines
-        bus_styles = {
-            "70": {
-                "color": "#2ca25f",
-                "weight": 4,
-                "opacity": 0.85,
-            },
-            "NX1": {
-                "color": "#d73027",
-                "weight": 4,
-                "opacity": 0.85,
-            },
-            "NX2": {
-                "color": "#2563eb",
-                "weight": 4,
-                "opacity": 0.85,
-            },
-        }
-
-        train_style = {
-            "color": "#f97316",
-            "weight": 5,
-            "opacity": 1.0,
-        }
-
-        m = Map(
-            center=(-36.85, 174.77),
-            zoom=11,
-            basemap=basemaps.CartoDB.Positron,
-            scroll_wheel_zoom=True
-        )
-
-        # Add selected bus routes
-        for service in selected_bus_services:
-            selected_bus_route = bus_routes[
-                bus_routes["ROUTENUMBER_CLEAN"] == service
-            ].copy()
-
-            if len(selected_bus_route) > 0:
-                bus_layer = GeoJSON(
-                    data=json.loads(selected_bus_route.to_json()),
-                    style=bus_styles.get(
-                        service,
-                        {
-                            "color": "#333333",
-                            "weight": 4,
-                            "opacity": 0.8,
-                        }
-                    ),
-                    name=f"Bus route {service}"
-                )
-
-                m.add_layer(bus_layer)
-
-        # Add full train network if train is selected
-        if show_train and len(train_routes) > 0:
-            train_layer = GeoJSON(
-                data=json.loads(train_routes.to_json()),
-                style=train_style,
-                name="Train network"
-            )
-
-            m.add_layer(train_layer)
-
-        return m
+        return map_state["map"]
 
 app = App(app_ui, server)
