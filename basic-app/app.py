@@ -1,7 +1,6 @@
 from shiny import App, ui, render, reactive
 from shinywidgets import output_widget, render_widget
-from ipyleaflet import Map, basemaps, GeoJSON
-import json
+from ipyleaflet import Map, basemaps, GeoData
 import pandas as pd
 import geopandas as gpd
 from pathlib import Path
@@ -28,20 +27,16 @@ bus_routes["ROUTENUMBER_CLEAN"] = (
     .str.upper()
 )
 
-# Precompute lightweight GeoJSON for the map so reactive map updates do not
-# repeatedly serialize the route layers.
+# Precompute lightweight route GeoDataFrames for the map so reactive map
+# updates do not repeatedly filter or simplify route layers.
 train_routes_display = train_routes.copy()
 train_routes_display["geometry"] = train_routes_display.geometry.simplify(
     tolerance=0.0002,
     preserve_topology=True
 )
 
-train_routes_geojson = json.loads(train_routes_display.to_json())
-
-bus_route_geojson = {
-    route: json.loads(
-        bus_routes[bus_routes["ROUTENUMBER_CLEAN"] == route].to_json()
-    )
+bus_route_gdfs = {
+    route: bus_routes[bus_routes["ROUTENUMBER_CLEAN"] == route].copy()
     for route in ["70", "NX1", "NX2"]
 }
 
@@ -229,8 +224,8 @@ def server(input, output, session):
         )
 
         bus_layers = {
-            service: GeoJSON(
-                data=geojson_data,
+            service: GeoData(
+                geo_dataframe=route_gdf,
                 style=bus_styles.get(
                     service,
                     {
@@ -241,19 +236,14 @@ def server(input, output, session):
                 ),
                 name=f"Bus route {service}"
             )
-            for service, geojson_data in bus_route_geojson.items()
+            for service, route_gdf in bus_route_gdfs.items()
         }
 
-        train_layer = GeoJSON(
-            data=train_routes_geojson,
+        train_layer = GeoData(
+            geo_dataframe=train_routes_display,
             style=train_style,
             name="Train network"
         )
-
-        for layer in bus_layers.values():
-            network_map_widget.add_layer(layer)
-
-        network_map_widget.add_layer(train_layer)
 
         map_state["map"] = network_map_widget
         map_state["bus_layers"] = bus_layers
@@ -281,11 +271,16 @@ def server(input, output, session):
             for service in (input.services() or [])
         }
 
+        if map_state["map"] is None:
+            reactive.invalidate_later(0.1)
+            return
+
         for service, layer in map_state["bus_layers"].items():
             set_map_layer(layer, service in selected_services)
 
         train_layer = map_state["train_layer"]
         if train_layer is None:
+            reactive.invalidate_later(0.1)
             return
 
         set_map_layer(train_layer, "TRAIN" in selected_services)
