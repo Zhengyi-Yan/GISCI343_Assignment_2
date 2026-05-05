@@ -1,6 +1,7 @@
 from shiny import App, ui, render, reactive
 from shinywidgets import output_widget, render_widget
-from ipyleaflet import Map, basemaps, GeoData
+from ipyleaflet import Map, basemaps, GeoJSON
+import json
 import pandas as pd
 import geopandas as gpd
 from pathlib import Path
@@ -12,28 +13,49 @@ import matplotlib.pyplot as plt
 
 Path("data/processed").mkdir(parents=True, exist_ok=True)
 
-bus_routes = gpd.read_file("data/bus_routes.geojson").to_crs(4326)
-train_routes = gpd.read_file("data/train_routes.geojson").to_crs(4326)
+# -----------------------------
+# Load spatial data
+# -----------------------------
 
-# Load manually cleaned patronage table
-df = pd.read_csv("data/2019_2024_bus_train_patronage.csv")
+bus_routes = gpd.read_file("data/bus_routes.geojson")
+train_routes = gpd.read_file("data/train_routes.geojson")
 
-# Remove completely empty rows from the CSV
-df = df.dropna(how="all")
+# Make sure bus routes are in WGS84 for ipyleaflet
+if bus_routes.crs is None:
+    bus_routes = bus_routes.set_crs(4326)
+else:
+    bus_routes = bus_routes.to_crs(4326)
 
-# Treat service names as text
-df["service"] = df["service"].astype(str)
+# Make sure train routes are in WGS84 for ipyleaflet
+if train_routes.crs is None:
+    train_routes = train_routes.set_crs(4326)
+else:
+    train_routes = train_routes.to_crs(4326)
+
+# Clean route number fields for reliable filtering
+bus_routes["ROUTENUMBER_CLEAN"] = (
+    bus_routes["ROUTENUMBER"]
+    .astype(str)
+    .str.strip()
+    .str.upper()
+)
+
+# -----------------------------
+# Load patronage table
+# -----------------------------
+
+# Change this to "patronage_data.csv" if the file is beside app.py
+df = pd.read_csv("data/patronage_data.csv")
+
+# Clean service names
+df["service"] = df["service"].astype(str).str.strip()
 
 # Year columns
 year_cols = ["2019", "2020", "2021", "2022", "2023", "2024"]
 
 # Convert year columns to numeric values
 for col in year_cols:
-    df[col] = pd.to_numeric(df[col], errors="coerce")
-
-# Basic validation
-if df[year_cols].isna().any().any():
-    raise ValueError("Some patronage values are missing or non-numeric. Please check the CSV.")
+    df[col] = pd.to_numeric(df[col])
 
 # Convert from wide format to long format
 patronage = df.melt(
@@ -83,9 +105,6 @@ def year_to_period(year):
         return "Recovery period"
 
 patronage["period"] = patronage["year"].apply(year_to_period)
-
-# Save processed version
-patronage.to_csv("data/processed/selected_services_patronage_long.csv", index=False)
 
 # -----------------------------
 # User interface
@@ -158,7 +177,7 @@ app_ui = ui.page_fluid(
     ui.output_plot("chart"),
 
     ui.h3("Network map"),
-    output_widget("network_map")
+    output_widget("network_map", height="500px")
 )
 
 # -----------------------------
@@ -306,17 +325,83 @@ def server(input, output, session):
 
     @render_widget
     def network_map():
+        selected_services = list(input.services() or [])
+
+        selected_services_clean = [
+            str(service).strip().upper()
+            for service in selected_services
+        ]
+
+        show_train = "TRAIN" in selected_services_clean
+
+        selected_bus_services = [
+            service for service in selected_services_clean
+            if service != "TRAIN"
+        ]
+
+        # Same line weight, solid bus lines
+        bus_styles = {
+            "70": {
+                "color": "#2ca25f",
+                "weight": 4,
+                "opacity": 0.85,
+            },
+            "NX1": {
+                "color": "#d73027",
+                "weight": 4,
+                "opacity": 0.85,
+            },
+            "NX2": {
+                "color": "#2563eb",
+                "weight": 4,
+                "opacity": 0.85,
+            },
+        }
+
+        train_style = {
+            "color": "#f97316",
+            "weight": 5,
+            "opacity": 1.0,
+        }
+
         m = Map(
             center=(-36.85, 174.77),
             zoom=11,
-            #basemap=basemaps.OpenStreetMap.Mapnik,
+            basemap=basemaps.CartoDB.Positron,
             scroll_wheel_zoom=True
         )
-        m.add_layer(GeoData(
-            geo_dataframe=bus_routes,
-            style={"color": "#d73027", "weight": 2, "opacity": 0.8},
-            name="Bus routes"
-        ))
+
+        # Add selected bus routes
+        for service in selected_bus_services:
+            selected_bus_route = bus_routes[
+                bus_routes["ROUTENUMBER_CLEAN"] == service
+            ].copy()
+
+            if len(selected_bus_route) > 0:
+                bus_layer = GeoJSON(
+                    data=json.loads(selected_bus_route.to_json()),
+                    style=bus_styles.get(
+                        service,
+                        {
+                            "color": "#333333",
+                            "weight": 4,
+                            "opacity": 0.8,
+                        }
+                    ),
+                    name=f"Bus route {service}"
+                )
+
+                m.add_layer(bus_layer)
+
+        # Add full train network if train is selected
+        if show_train and len(train_routes) > 0:
+            train_layer = GeoJSON(
+                data=json.loads(train_routes.to_json()),
+                style=train_style,
+                name="Train network"
+            )
+
+            m.add_layer(train_layer)
 
         return m
 
