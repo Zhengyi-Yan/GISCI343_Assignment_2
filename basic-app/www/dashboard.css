@@ -1,0 +1,326 @@
+:root {
+    --ink: #061a40;
+    --muted: #3d5278;
+    --line: #d7e0ef;
+    --panel: #ffffff;
+    --blue: #0d6efd;
+    --green: #169b62;
+    --purple: #7b3fe4;
+    --orange: #f59f00;
+}
+
+body {
+    background: #f5f8fc;
+    color: var(--ink);
+}
+
+.bslib-sidebar-layout {
+    --bslib-sidebar-main-bg: #f5f8fc;
+}
+
+.app-sidebar {
+    background: linear-gradient(180deg, #071d3f 0%, #041126 100%);
+    color: white;
+    border-right: 0;
+    overflow: visible !important;
+    max-height: none !important;
+}
+
+.app-sidebar > div,
+.app-sidebar .sidebar-content {
+    overflow: visible !important;
+    max-height: none !important;
+}
+
+.sidebar-inner {
+    padding: 10px 18px 24px;
+    font-size: 90%;
+}
+
+.sidebar-inner .form-group {
+    margin-bottom: 22px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 27px;
+}
+
+.brand-icon {
+    width: 49px;
+    height: 49px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #16c7b7, #1379ff);
+    color: #06214a;
+}
+
+.brand-icon svg,
+.route-icon svg {
+    width: 34px;
+    height: 34px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.brand-icon svg {
+    width: 31px;
+    height: 31px;
+}
+
+.brand-title {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.05;
+    color: #ffffff;
+}
+
+.sidebar-inner .form-label,
+.sidebar-inner legend,
+.sidebar-inner .control-label {
+    display: block;
+    color: #ffffff;
+    font-weight: 650;
+    line-height: 1.2;
+    margin-bottom: 18px;
+}
+
+.sidebar-inner .form-check-label,
+.sidebar-inner .checkbox label,
+.sidebar-inner .checkbox span,
+.sidebar-inner .radio label,
+.sidebar-inner .radio span,
+.sidebar-inner .shiny-options-group label,
+.sidebar-inner .shiny-options-group span {
+    color: #edf5ff !important;
+}
+
+.sidebar-inner .shiny-input-checkboxgroup .shiny-options-group {
+    display: grid;
+    gap: 9px;
+}
+
+.sidebar-inner .checkbox {
+    margin: 0;
+}
+
+.sidebar-inner .checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    line-height: 1.25;
+}
+
+.sidebar-inner input[type="checkbox"] {
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+.sidebar-inner .irs {
+    margin-top: 4px;
+    margin-bottom: 6px;
+}
+
+.sidebar-inner .form-select,
+.sidebar-inner .btn {
+    border-color: rgba(255, 255, 255, 0.22);
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+.sidebar-inner .form-select option {
+    color: #061a40;
+}
+
+.sidebar-inner .btn {
+    width: 100%;
+    margin-top: 10px;
+    font-weight: 650;
+}
+
+#view_tab {
+    margin-bottom: 26px;
+}
+
+#view_tab .radio {
+    padding-left: 0;
+    margin-bottom: 8px;
+}
+
+#view_tab .radio input {
+    display: none;
+}
+
+#view_tab .radio label {
+    display: block;
+    color: #dcecff;
+    padding: 11px 13px;
+    border-radius: 8px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease;
+}
+
+#view_tab .radio label:has(input:checked) {
+    background: linear-gradient(90deg, #2d6cdf, #1f55aa);
+    color: #ffffff !important;
+}
+
+#view_tab .radio label:has(input:checked) span {
+    color: #ffffff !important;
+}
+
+.filter-heading {
+    color: #8ea4c7;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    margin: 18px 0;
+}
+
+.dashboard-shell {
+    padding: 24px 28px 34px;
+}
+
+.dashboard-title {
+    font-size: 32px;
+    font-weight: 760;
+    margin: 0;
+    color: var(--ink);
+}
+
+.dashboard-subtitle {
+    color: var(--muted);
+    font-size: 16px;
+    margin-top: 6px;
+    margin-bottom: 20px;
+}
+
+.hero-panel,
+.dashboard-card,
+.route-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 22px rgba(6, 26, 64, 0.08);
+}
+
+.hero-panel {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 24px;
+    margin-bottom: 20px;
+    background: linear-gradient(90deg, #ffffff 0%, #eef6ff 100%);
+}
+
+.hero-icon {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #8e4bf2, #6d35d0);
+    color: #ffffff;
+    font-size: 32px;
+    font-weight: 760;
+}
+
+.hero-title {
+    font-size: 21px;
+    font-weight: 720;
+    margin-bottom: 4px;
+}
+
+.hero-copy {
+    color: var(--muted);
+    margin: 0;
+}
+
+.route-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.route-card {
+    padding: 18px;
+    display: flex;
+    gap: 14px;
+    min-height: 150px;
+}
+
+.route-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+}
+
+.route-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.route-value {
+    font-size: 28px;
+    font-weight: 760;
+    color: var(--ink);
+    line-height: 1.1;
+}
+
+.route-caption {
+    color: var(--muted);
+    line-height: 1.35;
+    margin-top: 6px;
+}
+
+.home-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.95fr);
+    gap: 16px;
+}
+
+.dashboard-card {
+    padding: 18px;
+    margin-bottom: 16px;
+}
+
+.dashboard-card h3 {
+    font-size: 19px;
+    margin: 0 0 12px;
+    font-weight: 720;
+    color: var(--ink);
+}
+
+.chart-note {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.45;
+    margin: 8px 0 0;
+}
+
+.chart-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.dashboard-card table {
+    font-size: 0.92rem;
+}
+
+@media (max-width: 1050px) {
+    .home-grid {
+        grid-template-columns: 1fr;
+    }
+}
