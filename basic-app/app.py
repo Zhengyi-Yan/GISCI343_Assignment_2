@@ -1,6 +1,7 @@
 from shiny import App, ui, render, reactive
 from shinywidgets import output_widget, render_widget
 from ipyleaflet import Map, basemaps, GeoData
+from ipywidgets import HTML
 import pandas as pd
 import geopandas as gpd
 from pathlib import Path
@@ -172,12 +173,21 @@ app_ui = ui.page_fluid(
 
     ui.hr(),
 
-    ui.output_text("summary"),
-    ui.output_table("tbl"),
-    ui.output_plot("chart"),
-
-    ui.h3("Network map"),
-    output_widget("network_map", height="500px")
+    ui.navset_tab(
+        ui.nav_panel(
+            "Map",
+            ui.output_text("summary"),
+            ui.output_table("tbl"),
+            ui.h3("Network map"),
+            output_widget("network_map", height="500px")
+        ),
+        ui.nav_panel(
+            "Charts",
+            ui.output_plot("recovery_trend_chart"),
+            ui.output_plot("raw_patronage_chart"),
+            ui.output_plot("recovery_ranking_chart")
+        )
+    )
 )
 
 # -----------------------------
@@ -209,6 +219,26 @@ def server(input, output, session):
         "opacity": 1.0,
     }
 
+    route_popup_labels = {
+        "70": {
+            "title": "Route 70",
+            "description": "Botany to Britomart via Panmure and Ellerslie.",
+        },
+        "NX1": {
+            "title": "Northern Express NX1",
+            "description": "Hibiscus Coast to Britomart via the Northern Busway.",
+        },
+        "NX2": {
+            "title": "Northern Express NX2",
+            "description": (
+                "Hibiscus Coast to Auckland universities "
+                "via Wellesley Street."
+            ),
+        },
+    }
+
+    patronage_2024 = patronage[patronage["year"] == 2024].set_index("service")
+
     map_state = {
         "map": None,
         "bus_layers": {},
@@ -223,8 +253,23 @@ def server(input, output, session):
             scroll_wheel_zoom=True
         )
 
-        bus_layers = {
-            service: GeoData(
+        bus_layers = {}
+
+        for service, route_gdf in bus_route_gdfs.items():
+            route_names = ", ".join(
+                sorted(route_gdf["ROUTENAME"].dropna().unique())
+            )
+            route_patterns = route_gdf["ROUTEPATTERN"].nunique()
+            popup_label = route_popup_labels.get(
+                service,
+                {
+                    "title": f"Bus route {service}",
+                    "description": "Selected Auckland bus route.",
+                }
+            )
+            route_patronage = patronage_2024.loc[service]
+
+            layer = GeoData(
                 geo_dataframe=route_gdf,
                 style=bus_styles.get(
                     service,
@@ -236,13 +281,35 @@ def server(input, output, session):
                 ),
                 name=f"Bus route {service}"
             )
-            for service, route_gdf in bus_route_gdfs.items()
-        }
+
+            layer.popup = HTML(
+                value=(
+                    f"<b>{popup_label['title']}</b><br>"
+                    f"{popup_label['description']}<br>"
+                    f"2024 patronage: {route_patronage['patronage'] / 1_000_000:.2f}M<br>"
+                    f"Recovery: {route_patronage['recovery_index']:.0f}% of 2019<br>"
+                )
+            )
+
+            bus_layers[service] = layer
 
         train_layer = GeoData(
             geo_dataframe=train_routes_display,
             style=train_style,
             name="Train network"
+        )
+
+        train_lines = ", ".join(
+            sorted(train_routes_display["ROUTENUMBER"].dropna().unique())
+        )
+
+        train_layer.popup = HTML(
+            value=(
+                "<b>Train network</b><br>"
+                f"2024 patronage: {patronage_2024.loc['train', 'patronage'] / 1_000_000:.2f}M<br>"
+                f"Recovery: {patronage_2024.loc['train', 'recovery_index']:.0f}% of 2019<br>"
+                f"Lines: {train_lines}<br>"
+            )
         )
 
         map_state["map"] = network_map_widget
@@ -419,6 +486,95 @@ def server(input, output, session):
         ax.set_xticks(sorted(df["year"].unique()))
         ax.legend(title="Service")
         ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        return fig
+
+    @render.plot
+    def recovery_trend_chart():
+        df = filtered()
+
+        fig, ax = plt.subplots(figsize=(9, 4))
+
+        if len(df) == 0:
+            ax.text(0.5, 0.5, "No data available", ha="center", va="center")
+            ax.set_axis_off()
+            return fig
+
+        for service, group in df.groupby("service"):
+            group = group.sort_values("year")
+            ax.plot(
+                group["year"],
+                group["recovery_index"],
+                marker="o",
+                label=service
+            )
+
+        ax.axhline(100, linestyle="--", linewidth=1, color="#666666")
+        ax.set_title("Patronage recovery compared with 2019 baseline")
+        ax.set_xlabel("Year")
+        ax.set_ylabel("Recovery index, 2019 = 100")
+        ax.set_xticks(sorted(df["year"].unique()))
+        ax.legend(title="Service")
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        return fig
+
+    @render.plot
+    def raw_patronage_chart():
+        df = filtered()
+
+        fig, ax = plt.subplots(figsize=(9, 4))
+
+        if len(df) == 0:
+            ax.text(0.5, 0.5, "No data available", ha="center", va="center")
+            ax.set_axis_off()
+            return fig
+
+        for service, group in df.groupby("service"):
+            group = group.sort_values("year")
+            ax.plot(
+                group["year"],
+                group["patronage"],
+                marker="o",
+                label=service
+            )
+
+        ax.set_title("Annual patronage by selected service")
+        ax.set_xlabel("Year")
+        ax.set_ylabel("Annual boardings")
+        ax.set_xticks(sorted(df["year"].unique()))
+        ax.legend(title="Service")
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        return fig
+
+    @render.plot
+    def recovery_ranking_chart():
+        df = filtered()
+
+        fig, ax = plt.subplots(figsize=(9, 4))
+
+        if len(df) == 0:
+            ax.text(0.5, 0.5, "No data available", ha="center", va="center")
+            ax.set_axis_off()
+            return fig
+
+        latest_year = df["year"].max()
+        latest = df[df["year"] == latest_year].sort_values("recovery_index")
+
+        ax.barh(
+            latest["service"],
+            latest["recovery_index"],
+            color="#2ca25f"
+        )
+        ax.axvline(100, linestyle="--", linewidth=1, color="#666666")
+        ax.set_title(f"{latest_year} recovery ranking")
+        ax.set_xlabel("Recovery index, 2019 = 100")
+        ax.set_ylabel("Service")
+        ax.grid(True, axis="x", alpha=0.3)
         plt.tight_layout()
 
         return fig
