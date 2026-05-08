@@ -162,10 +162,8 @@ app_ui = ui.page_sidebar(
     ui.sidebar(
         ui.div(
             ui.div(
-                ui.div(transport_icon("bus"), class_="brand-icon"),
                 ui.div(
-                    ui.div("Auckland", class_="brand-title"),
-                    ui.div("Transport", class_="brand-title"),
+                    ui.div("Dashboard", class_="brand-title"),
                     class_="brand-text"
                 ),
                 class_="brand"

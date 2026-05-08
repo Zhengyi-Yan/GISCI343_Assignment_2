@@ -33,7 +33,7 @@ body {
 }
 
 .sidebar-inner {
-    padding: 10px 18px 24px;
+    padding: 0 18px 24px;
     font-size: 90%;
 }
 
@@ -75,7 +75,7 @@ body {
 }
 
 .brand-title {
-    font-size: 20px;
+    font-size: 32px;
     font-weight: 700;
     line-height: 1.05;
     color: #ffffff;
