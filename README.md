@@ -1,5 +1,36 @@
 # GISCI343 Assignment 2
 
+## How to run the project locally
+
+This project uses **Shiny for Python**. The app is also exported with **Shinylive** so it can run on GitHub Pages.
+
+### 1. Clone or download the project
+
+```bash
+git clone <your-repository-url>
+cd <your-repository-folder>
+```
+
+### 2. Install dependencies with uv
+
+If uv is being used, install the project dependencies with:
+
+```bash
+uv sync
+```
+
+This creates or updates the project virtual environment.
+
+### 3. Run the Shiny app locally
+
+From the folder that contains app.py, run:
+
+```bash
+uv run shiny run --reload app.py
+```
+Then open the local URL shown in the terminal.
+
+
 ## Auckland Public Transport Recovery Dashboard
 
 ## What does this dashboard show?
@@ -62,33 +93,3 @@ The main limitation is that the bus data represents individual routes, while the
 The recovery index provides a fairer comparison because each service is compared against its own 2019 baseline.
 
 The dashboard also does not account for population growth, service frequency, fare changes, rail disruptions, remote work patterns, or other factors that may affect patronage. Therefore, it shows observed patronage recovery, not a full explanation of why recovery differed between services.
-
-## How to run the project locally
-
-This project uses **Shiny for Python**. The app is also exported with **Shinylive** so it can run on GitHub Pages.
-
-### 1. Clone or download the project
-
-```bash
-git clone <your-repository-url>
-cd <your-repository-folder>
-```
-
-### 2. Install dependencies with uv
-
-If uv is being used, install the project dependencies with:
-
-```bash
-uv sync
-```
-
-This creates or updates the project virtual environment.
-
-### 3. Run the Shiny app locally
-
-From the folder that contains app.py, run:
-
-```bash
-uv run shiny run --reload app.py
-```
-Then open the local URL shown in the terminal.
