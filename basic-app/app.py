@@ -21,12 +21,6 @@ def format_boardings(value, _):
     return f"{value:.0f}"
 
 # -----------------------------
-# Load and prepare data
-# -----------------------------
-
-(DATA_DIR / "processed").mkdir(parents=True, exist_ok=True)
-
-# -----------------------------
 # Load spatial data
 # -----------------------------
 
