@@ -250,6 +250,10 @@ app_ui = ui.page_sidebar(
                     ui.div(
                         ui.h3("Service network map"),
                         output_widget("network_map", height="500px"),
+                        ui.p(
+                            "Tip: Click on different routes to view route information.",
+                            class_="chart-note"
+                        ),
                         class_="dashboard-card"
                     ),
                     class_="home-grid"
